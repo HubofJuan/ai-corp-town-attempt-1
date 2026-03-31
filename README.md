@@ -22,7 +22,7 @@ above) are written in Python.
 ## Overview
 
 - 💻 [Stack](#stack)
-- 🧠 [Installation](#installation) (cloud, local, Docker, self-host, Fly.io, ...)
+- 🧠 [Installation](#installation) (cloud, local, Docker, self-host, ...)
 - 💻️ [Windows Pre-requisites](#windows-installation)
 - 🤖 [Configure your LLM of choice](#connect-an-llm) (Ollama, OpenAI, Together.ai, ...)
 - 👤 [Customize - YOUR OWN simulated world](#customize-your-own-simulation)
@@ -73,7 +73,6 @@ There are a few ways to run the app on top of Convex (the backend).
 3. There's a community fork of this project offering a one-click install on
    [Pinokio](https://pinokio.computer/item?uri=https://github.com/cocktailpeanutlabs/aitown) for
    anyone interested in running but not modifying it 😎.
-4. You can also deploy it to [Fly.io](https://fly.io/). See [./fly](./fly) for instructions.
 
 ### Standard Setup
 

@@ -9,6 +9,10 @@ game/node_modules/
 # testing
 /coverage
 
+# benchmarking — output artifacts only (source files are tracked)
+/benchmark-results/
+*.bench.json
+
 # next.js
 /.next/
 /out/

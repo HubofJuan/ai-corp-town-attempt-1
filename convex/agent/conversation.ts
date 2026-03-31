@@ -1,6 +1,6 @@
 import { v } from 'convex/values';
-import { Id } from '../_generated/dataModel';
-import { ActionCtx, internalQuery } from '../_generated/server';
+import { Doc, Id } from '../_generated/dataModel';
+import { ActionCtx, internalQuery, QueryCtx } from '../_generated/server';
 import { LLMMessage, chatCompletion } from '../util/llm';
 import * as memory from './memory';
 import { api, internal } from '../_generated/api';
@@ -17,6 +17,7 @@ export async function startConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
+  try {
   const { player, otherPlayer, agent, otherAgent, lastConversation } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
@@ -35,11 +36,12 @@ export async function startConversationMessage(
     ctx,
     player.id as GameId<'players'>,
     embedding,
+    // @ts-ignore
     Number(process.env.NUM_MEMORIES_TO_SEARCH) || NUM_MEMORIES_TO_SEARCH,
   );
 
   const memoryWithOtherPlayer = memories.find(
-    (m) => m.data.type === 'conversation' && m.data.playerIds.includes(otherPlayerId),
+    (m: memory.Memory) => m.data.type === 'conversation' && m.data.playerIds.includes(otherPlayerId),
   );
   const prompt = [
     `You are ${player.name}, and you just started a conversation with ${otherPlayer.name}.`,
@@ -65,10 +67,14 @@ export async function startConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
-  return trimContentPrefx(content, lastPrompt);
+  return trimContentPrefix(content, lastPrompt);
+  } catch (error) {
+    console.error("Error in startConversationMessage:", error);
+    throw new Error("An internal error occurred while generating a conversation message.");
+  }
 }
 
-function trimContentPrefx(content: string, prompt: string) {
+function trimContentPrefix(content: string, prompt: string) {
   if (content.startsWith(prompt)) {
     return content.slice(prompt.length).trim();
   }
@@ -82,6 +88,7 @@ export async function continueConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
+  try {
   const { player, otherPlayer, conversation, agent, otherAgent } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
@@ -130,7 +137,11 @@ export async function continueConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
-  return trimContentPrefx(content, lastPrompt);
+  return trimContentPrefix(content, lastPrompt);
+  } catch (error) {
+    console.error("Error in continueConversationMessage:", error);
+    throw new Error("An internal error occurred while continuing a conversation message.");
+  }
 }
 
 export async function leaveConversationMessage(
@@ -140,6 +151,7 @@ export async function leaveConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
+  try {
   const { player, otherPlayer, conversation, agent, otherAgent } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
@@ -151,7 +163,7 @@ export async function leaveConversationMessage(
   );
   const prompt = [
     `You are ${player.name}, and you're currently in a conversation with ${otherPlayer.name}.`,
-    `You've decided to leave the question and would like to politely tell them you're leaving the conversation.`,
+    `You've decided to leave the conversation and would like to politely tell them you're leaving the conversation.`,
   ];
   prompt.push(...agentPrompts(otherPlayer, agent, otherAgent ?? null));
   prompt.push(
@@ -179,7 +191,11 @@ export async function leaveConversationMessage(
     max_tokens: 300,
     stop: stopWords(otherPlayer.name, player.name),
   });
-  return trimContentPrefx(content, lastPrompt);
+  return trimContentPrefix(content, lastPrompt);
+  } catch (error) {
+    console.error("Error in leaveConversationMessage:", error);
+    throw new Error("An internal error occurred while generating a leave message.");
+  }
 }
 
 function agentPrompts(
@@ -246,15 +262,9 @@ async function previousMessages(
   return llmMessages;
 }
 
-export const queryPromptData = internalQuery({
-  args: {
-    worldId: v.id('worlds'),
-    playerId,
-    otherPlayerId: playerId,
-    conversationId,
-  },
-  handler: async (ctx, args) => {
-    const world = await ctx.db.get(args.worldId);
+export async function queryPromptDataHandler(ctx: QueryCtx, args: { worldId: Id<'worlds'>; playerId: string; otherPlayerId: string; conversationId: string }) {
+  try {
+    const world = (await ctx.db.get(args.worldId)) as Doc<'worlds'> | null;
     if (!world) {
       throw new Error(`World ${args.worldId} not found`);
     }
@@ -286,7 +296,7 @@ export const queryPromptData = internalQuery({
     }
     const agent = world.agents.find((a) => a.playerId === args.playerId);
     if (!agent) {
-      throw new Error(`Player ${args.playerId} not found`);
+      throw new Error(`Agent for player ${args.playerId} not found`);
     }
     const agentDescription = await ctx.db
       .query('agentDescriptions')
@@ -335,14 +345,27 @@ export const queryPromptData = internalQuery({
       otherPlayer: { name: otherPlayerDescription.name, ...otherPlayer },
       conversation,
       agent: { identity: agentDescription.identity, plan: agentDescription.plan, ...agent },
-      otherAgent: otherAgent && {
+      otherAgent: otherAgent ? {
         identity: otherAgentDescription!.identity,
         plan: otherAgentDescription!.plan,
         ...otherAgent,
-      },
+      } : null,
       lastConversation,
     };
+    } catch (error) {
+      console.error("Error in queryPromptData:", error);
+      throw new Error("An internal error occurred fetching prompt data.");
+    }
+}
+
+export const queryPromptData = internalQuery({
+  args: {
+    worldId: v.id('worlds'),
+    playerId,
+    otherPlayerId: playerId,
+    conversationId,
   },
+  handler: queryPromptDataHandler,
 });
 
 function stopWords(otherPlayer: string, player: string) {

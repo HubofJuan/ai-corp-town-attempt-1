@@ -1,5 +1,5 @@
 import { v } from 'convex/values';
-import { ActionCtx, internalMutation, internalQuery } from '../_generated/server';
+import { ActionCtx, internalMutation, internalQuery, QueryCtx, MutationCtx } from '../_generated/server';
 import { internal } from '../_generated/api';
 import { Id } from '../_generated/dataModel';
 import { fetchEmbeddingBatch } from '../util/llm';
@@ -12,6 +12,7 @@ export async function fetch(ctx: ActionCtx, text: string) {
 }
 
 export async function fetchBatch(ctx: ActionCtx, texts: string[]) {
+  try {
   const start = Date.now();
 
   const textHashes = await Promise.all(texts.map((text) => hashText(text)));
@@ -49,6 +50,10 @@ export async function fetchBatch(ctx: ActionCtx, texts: string[]) {
     hits: cacheResults.length,
     ms: Date.now() - start,
   };
+  } catch (error) {
+    console.error("Error in fetchBatch:", error);
+    throw new Error("An internal error occurred while fetching embeddings.");
+  }
 }
 
 async function hashText(text: string) {
@@ -57,6 +62,7 @@ async function hashText(text: string) {
   if (typeof crypto === 'undefined') {
     // Ugly, ugly hax to get ESBuild to not try to bundle this node dependency.
     const f = () => 'node:crypto';
+    // @ts-ignore
     const crypto = (await import(f())) as typeof import('crypto');
     const hash = crypto.createHash('sha256');
     hash.update(buf);
@@ -66,18 +72,14 @@ async function hashText(text: string) {
   }
 }
 
-export const getEmbeddingsByText = internalQuery({
-  args: { textHashes: v.array(v.bytes()) },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ index: number; embeddingId: Id<'embeddingsCache'>; embedding: number[] }[]> => {
+export async function getEmbeddingsByTextHandler(ctx: QueryCtx, args: { textHashes: ArrayBuffer[] }) {
+  try {
     const out = [];
     for (let i = 0; i < args.textHashes.length; i++) {
       const textHash = args.textHashes[i];
       const result = await ctx.db
         .query('embeddingsCache')
-        .withIndex('text', (q) => q.eq('textHash', textHash))
+        .withIndex('text', (q: any) => q.eq('textHash', textHash))
         .first();
       if (result) {
         out.push({
@@ -88,8 +90,29 @@ export const getEmbeddingsByText = internalQuery({
       }
     }
     return out;
-  },
+  } catch (error) {
+    console.error("Error in getEmbeddingsByText:", error);
+    throw new Error("An internal error occurred retrieving embeddings.");
+  }
+}
+
+export const getEmbeddingsByText = internalQuery({
+  args: { textHashes: v.array(v.bytes()) },
+  handler: getEmbeddingsByTextHandler,
 });
+
+export async function writeEmbeddingsHandler(ctx: MutationCtx, args: { embeddings: Array<{ textHash: ArrayBuffer; embedding: number[] }> }) {
+  try {
+    const ids = [];
+    for (const embedding of args.embeddings) {
+      ids.push(await ctx.db.insert('embeddingsCache', embedding));
+    }
+    return ids;
+  } catch (error) {
+    console.error("Error in writeEmbeddings:", error);
+    throw new Error("An internal error occurred writing embeddings.");
+  }
+}
 
 export const writeEmbeddings = internalMutation({
   args: {
@@ -100,11 +123,5 @@ export const writeEmbeddings = internalMutation({
       }),
     ),
   },
-  handler: async (ctx, args): Promise<Id<'embeddingsCache'>[]> => {
-    const ids = [];
-    for (const embedding of args.embeddings) {
-      ids.push(await ctx.db.insert('embeddingsCache', embedding));
-    }
-    return ids;
-  },
+  handler: writeEmbeddingsHandler,
 });

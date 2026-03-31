@@ -72,12 +72,12 @@ export default function Home() {
         </Unauthenticated>
       </div> */}
 
-      <div className="w-full lg:h-screen min-h-screen relative isolate overflow-hidden lg:p-8 shadow-2xl flex flex-col justify-start">
-        <h1 className="mx-auto text-4xl p-3 sm:text-8xl lg:text-9xl font-bold font-display leading-none tracking-wide game-title w-full text-left sm:text-center sm:w-auto">
+      <div className="w-full lg:h-screen min-h-screen relative isolate overflow-hidden lg:p-4 shadow-2xl flex flex-col justify-start">
+        <h1 className="mx-auto text-4xl p-2 sm:text-6xl lg:text-7xl font-bold font-display leading-none tracking-wide game-title w-full text-left sm:text-center sm:w-auto">
           AI Town
         </h1>
 
-        <div className="max-w-xs md:max-w-xl lg:max-w-none mx-auto my-4 text-center text-base sm:text-xl md:text-2xl text-white leading-tight shadow-solid">
+        <div className="max-w-xs md:max-w-xl lg:max-w-none mx-auto my-1 text-center text-base sm:text-lg md:text-xl text-white leading-tight shadow-solid">
           A virtual town where AI characters live, chat and socialize.
           {/* <Unauthenticated>
             <div className="my-1.5 sm:my-0" />
@@ -86,7 +86,9 @@ export default function Home() {
           </Unauthenticated> */}
         </div>
 
-        <Game />
+        <div className="flex-1 flex flex-col min-h-0">
+          <Game />
+        </div>
 
         <footer className="justify-end bottom-0 left-0 w-full flex items-center mt-4 gap-3 p-6 flex-wrap pointer-events-none">
           <div className="flex gap-4 flex-grow pointer-events-none">
