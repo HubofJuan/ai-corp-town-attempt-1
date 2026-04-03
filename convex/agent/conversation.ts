@@ -74,7 +74,7 @@ export async function startConversationMessage(
   }
 }
 
-function trimContentPrefix(content: string, prompt: string) {
+export function trimContentPrefix(content: string, prompt: string) {
   if (content.startsWith(prompt)) {
     return content.slice(prompt.length).trim();
   }
@@ -198,7 +198,7 @@ export async function leaveConversationMessage(
   }
 }
 
-function agentPrompts(
+export function agentPrompts(
   otherPlayer: { name: string },
   agent: { identity: string; plan: string } | null,
   otherAgent: { identity: string; plan: string } | null,
@@ -214,7 +214,7 @@ function agentPrompts(
   return prompt;
 }
 
-function previousConversationPrompt(
+export function previousConversationPrompt(
   otherPlayer: { name: string },
   conversation: { created: number } | null,
 ): string[] {
@@ -231,7 +231,7 @@ function previousConversationPrompt(
   return prompt;
 }
 
-function relatedMemoriesPrompt(memories: memory.Memory[]): string[] {
+export function relatedMemoriesPrompt(memories: memory.Memory[]): string[] {
   const prompt = [];
   if (memories.length > 0) {
     prompt.push(`Here are some related memories in decreasing relevance order:`);
@@ -368,7 +368,7 @@ export const queryPromptData = internalQuery({
   handler: queryPromptDataHandler,
 });
 
-function stopWords(otherPlayer: string, player: string) {
+export function stopWords(otherPlayer: string, player: string) {
   // These are the words we ask the LLM to stop on. OpenAI only supports 4.
   const variants = [`${otherPlayer} to ${player}`];
   return variants.flatMap((stop) => [stop + ':', stop.toLowerCase() + ':']);
